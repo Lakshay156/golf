@@ -28,8 +28,8 @@ ALTER TABLE users ADD CONSTRAINT fk_user_charity FOREIGN KEY (charity_id) REFERE
 CREATE TABLE subscriptions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    stripe_subscription_id VARCHAR(255) UNIQUE,
-    stripe_customer_id VARCHAR(255),
+    razorpay_subscription_id VARCHAR(255) UNIQUE,
+    razorpay_customer_id VARCHAR(255),
     plan VARCHAR(50) NOT NULL, -- 'monthly' or 'yearly'
     status VARCHAR(50) NOT NULL, -- 'active', 'past_due', 'canceled'
     start_date TIMESTAMP WITH TIME ZONE,
@@ -72,7 +72,7 @@ CREATE TABLE winners (
 CREATE TABLE payments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    stripe_invoice_id VARCHAR(255) UNIQUE,
+    razorpay_payment_id VARCHAR(255) UNIQUE,
     amount DECIMAL(10,2) NOT NULL,
     status VARCHAR(50) NOT NULL, -- 'succeeded', 'failed', etc.
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

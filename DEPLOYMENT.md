@@ -6,12 +6,12 @@
 3. Paste the contents of `database/schema.sql` and click **Run**.
 4. Go to **Project Settings -> Database** to find your connection string (`DATABASE_URL`).
 
-## 2. Stripe Integration
-1. Create a [Stripe Account](https://stripe.com).
-2. In the Developers dashboard, get your **Publishable Key** and **Secret Key**.
-3. Create a Product for "Monthly Subscription" and "Yearly Subscription", note their **Price IDs**.
-4. Set up a Webhook pointing to `https://your-backend-domain.com/api/subscriptions/webhook` testing for events like `checkout.session.completed`.
-5. Get your **Webhook Secret**.
+## 2. Razorpay Integration
+1. Create a [Razorpay Account](https://razorpay.com).
+2. In the Dashboard under Settings -> API Keys, get your **Key ID** and **Key Secret**.
+3. Create Subscription Plans for "Monthly" and "Yearly", note their **Plan IDs**.
+4. Set up a Webhook pointing to `https://your-backend-domain.com/api/subscriptions/webhook` testing for events like `subscription.charged`.
+5. Specify a **Webhook Secret** and save it.
 
 ## 3. Backend Deployment (Render / Railway)
 1. Push your repository to GitHub.
@@ -24,8 +24,9 @@
    - `PORT=5000`
    - `DATABASE_URL=your_supabase_postgresql_url`
    - `JWT_SECRET=generate_a_random_secure_string`
-   - `STRIPE_SECRET_KEY=sk_test_...`
-   - `STRIPE_WEBHOOK_SECRET=whsec_...`
+   - `RAZORPAY_KEY_ID=rzp_live_...`
+   - `RAZORPAY_KEY_SECRET=...`
+   - `WEBHOOK_SECRET=your_webhook_secret`
    - `CLIENT_URL=https://your-frontend-domain.vercel.app`
 
 ## 4. Frontend Deployment (Vercel)
@@ -39,5 +40,5 @@
 ## 5. Verify Setup
 - Register a user on your live Vercel frontend.
 - Log in manually to your Supabase instance to assign that user `role = 'admin'` for access to the Admin Dashboard.
-- Subscriptions can be tested using Stripe's test payment cards.
+- Subscriptions can be tested using Razorpay's test mode credentials.
 - Execute a sample Monthly Draw from the Admin dashboard.

@@ -4,10 +4,14 @@ const cors = require('cors');
 
 const app = express();
 
-// Stripe webhooks need the raw body, so we must separate it before express.json()
+const crypto = require('crypto');
+
+// Razorpay webhooks need the raw body to verify HMAC signatures
 app.post('/api/subscriptions/webhook', express.raw({ type: 'application/json' }), (req, res) => {
-    // Webhook logic placeholder, will be imported from controllers
-    console.log('Stripe webhook received');
+    const signature = req.headers['x-razorpay-signature'];
+    
+    // In production, use crypto.createHmac to verify the signature against process.env.WEBHOOK_SECRET
+    console.log('Razorpay webhook received with signature:', signature);
     res.status(200).send('OK');
 });
 
