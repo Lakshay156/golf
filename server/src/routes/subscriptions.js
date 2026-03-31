@@ -1,40 +1,44 @@
 const express = require('express');
-const Razorpay = require('razorpay');
+const Stripe = require('stripe');
 const db = require('../db');
 const { verifyToken } = require('../middlewares/auth');
 const { sendEmail } = require('../services/email');
 
 const router = express.Router();
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
 router.post('/create-subscription', verifyToken, async (req, res) => {
     try {
         const { planId } = req.body; // 'monthly' or 'yearly'
         
-        // Example Razorpay plan IDs. In production, create these in your Razorpay Dashboard
-        const plan_id = planId === 'yearly' ? 'plan_dummy_yearly' : 'plan_dummy_monthly';
+        if (!stripe) {
+            return res.status(400).json({ message: 'Stripe keys not configured' });
+        }
         
-        const subscription = await razorpay.subscriptions.create({
-            plan_id: plan_id,
-            total_count: 120, // number of billing cycles
-            customer_notify: 1,
-            notes: {
-                userId: req.user.id
-            }
+        // Example Stripe price IDs. In production, create these in your Stripe Dashboard
+        const price_id = planId === 'yearly' ? 'price_dummy_yearly' : 'price_1TH3CAlf7nXoHpxlyrZNsf5i';
+        
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            mode: 'subscription',
+            client_reference_id: req.user.id,
+            line_items: [{
+                price: price_id,
+                quantity: 1,
+            }],
+            success_url: `${process.env.CLIENT_URL}/dashboard?payment=success`,
+            cancel_url: `${process.env.CLIENT_URL}/dashboard?payment=cancelled`,
         });
 
-        res.status(200).json({ subscriptionId: subscription.id });
+        res.status(200).json({ url: session.url });
     } catch (err) {
-        console.error('Error creating razorpay subscription:', err);
-        res.status(500).json({ message: 'Razorpay subscription creation failed' });
+        console.error('Error creating stripe subscription checkout:', err);
+        res.status(500).json({ message: 'Stripe subscription creation failed' });
     }
 });
 
-// For dummy/testing if Razorpay is not fully set up
+// For dummy/testing if Stripe is not fully set up
 router.post('/simulate-success', verifyToken, async (req, res) => {
     try {
         const { plan } = req.body;
@@ -44,16 +48,16 @@ router.post('/simulate-success', verifyToken, async (req, res) => {
             ['active', req.user.id]
         );
 
-        // Add dummy subscription record based on Razorpay structure
+        // Add dummy subscription record based on Stripe structure
         await db.query(
-            `INSERT INTO subscriptions (user_id, razorpay_subscription_id, plan, status, start_date, end_date) 
+            `INSERT INTO subscriptions (user_id, stripe_subscription_id, plan, status, start_date, end_date) 
              VALUES ($1, $2, $3, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + interval '1 month')`,
             [req.user.id, `sim_sub_${Date.now()}`, plan || 'monthly']
         );
 
-        await sendEmail(req.user.email, 'Subscription Activated via Razorpay', `Your ${plan || 'monthly'} subscription is now active! 10% will be seamlessly directed to your chosen charity.`);
+        await sendEmail(req.user.email, 'Subscription Activated via Stripe', `Your ${plan || 'monthly'} subscription is now active! 10% will be seamlessly directed to your chosen charity.`);
 
-        res.status(200).json({ message: 'Razorpay Subscription simulated successfully' });
+        res.status(200).json({ message: 'Stripe Subscription simulated successfully' });
     } catch (err) {
         console.error('Error simulating sub:', err);
         res.status(500).json({ message: 'Server error' });

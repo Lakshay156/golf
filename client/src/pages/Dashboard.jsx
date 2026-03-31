@@ -32,45 +32,20 @@ const Dashboard = () => {
     }
   }, [navigate]);
 
-  const handleRazorpayCheckout = async () => {
+  const handleStripeCheckout = async () => {
       try {
-          // 1. Load Razorpay script dynamically
-          const script = document.createElement('script');
-          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-          document.body.appendChild(script);
-          
-          script.onload = async () => {
-              try {
-                  // 2. Obtain Subscription ID from backend
-                  const res = await api.post('/subscriptions/create-subscription', { planId: 'monthly' });
-                  const { subscriptionId } = res.data;
-
-                  // 3. Open Razorpay widget
-                  const options = {
-                      key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_dummy', 
-                      subscription_id: subscriptionId,
-                      name: 'FairwayCause',
-                      description: 'Monthly Charity Golf Subscription',
-                      handler: async function (response) {
-                          // Note: A real app maps this via webhook, here we mock it for immediate UI update
-                          await api.post('/subscriptions/simulate-success', { plan: 'monthly' });
-                          setUser({...user, subscription_status: 'active'});
-                          alert('Payment successful! Subscription Activated.');
-                      },
-                      prefill: { name: user.name, email: user.email },
-                      theme: { color: '#34D399' }
-                  };
-                  const rzp = new window.Razorpay(options);
-                  rzp.open();
-              } catch (apiErr) {
-                  console.log("Real API keys missing or error. Falling back to simulation mode for dev.");
-                  await api.post('/subscriptions/simulate-success', { plan: 'monthly' });
-                  setUser({...user, subscription_status: 'active'});
-                  alert('Simulation Enabled: Missing API keys. Subscription mocked successfully locally.');
-              }
-          };
+          // Obtain Stripe Session URL from backend
+          const res = await api.post('/subscriptions/create-subscription', { planId: 'monthly' });
+          if (res.data.url) {
+              window.location.href = res.data.url;
+          } else {
+              throw new Error('No checkout URL received');
+          }
       } catch(err) {
-          alert('Error initializing Razorpay checkout');
+          console.log("Real API keys missing or error. Falling back to simulation mode for dev.");
+          await api.post('/subscriptions/simulate-success', { plan: 'monthly' });
+          setUser({...user, subscription_status: 'active'});
+          alert('Simulation Enabled: Missing API keys. Subscription mocked successfully locally.');
       }
   };
 
@@ -118,8 +93,8 @@ const Dashboard = () => {
                 </div>
             </div>
             {user?.subscription_status !== 'active' && (
-                <button onClick={handleRazorpayCheckout} className="btn-primary w-full mt-2 text-sm py-3 relative z-10">
-                    Subscribe with Razorpay ($10/mo)
+                <button onClick={handleStripeCheckout} className="btn-primary w-full mt-2 text-sm py-3 relative z-10">
+                    Subscribe with Stripe ($10/mo)
                 </button>
             )}
             </div>
