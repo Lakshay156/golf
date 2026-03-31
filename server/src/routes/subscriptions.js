@@ -17,7 +17,7 @@ router.post('/create-subscription', verifyToken, async (req, res) => {
         }
         
         // Example Stripe price IDs. In production, create these in your Stripe Dashboard
-        const price_id = planId === 'yearly' ? 'price_dummy_yearly' : 'price_1TH3CAlf7nXoHpxlyrZNsf5i';
+        const price_id = planId === 'yearly' ? 'price_dummy_yearly' : 'price_1TH3CAIf7nXoHpxlyrZNsf5i';
         
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
