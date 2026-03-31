@@ -6,6 +6,7 @@ import { Activity, Trophy, DollarSign, Users } from 'lucide-react';
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [drawResult, setDrawResult] = useState(null);
+  const [pendingWinners, setPendingWinners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [executing, setExecuting] = useState(false);
   const [error, setError] = useState('');
@@ -14,12 +15,14 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchAdminData = async () => {
       try {
-        const [statsRes, drawsRes] = await Promise.all([
+        const [statsRes, drawsRes, winnersRes] = await Promise.all([
             api.get('/admin/stats'),
-            api.get('/draws/latest')
+            api.get('/draws/latest'),
+            api.get('/admin/winners/pending')
         ]);
         setStats(statsRes.data);
         setDrawResult(drawsRes.data.data);
+        setPendingWinners(winnersRes.data.data || []);
       } catch (err) {
         console.error(err);
         if (err.response?.status === 401 || err.response?.status === 403) {
@@ -51,6 +54,16 @@ const AdminDashboard = () => {
     } finally {
         setExecuting(false);
     }
+  };
+
+  const handleVerifyWinner = async (winId, newStatus) => {
+      try {
+          await api.put(`/admin/winners/${winId}/verify`, { status: newStatus });
+          setPendingWinners(prev => prev.map(w => w.id === winId ? { ...w, status: newStatus } : w));
+          alert(`Winner successfully marked as ${newStatus}`);
+      } catch (err) {
+          alert('Verification failed. ' + (err.response?.data?.message || ''));
+      }
   };
 
   if (loading) return <div className="flex justify-center h-[60vh] items-center text-primary">Loading Admin...</div>;
@@ -129,6 +142,53 @@ const AdminDashboard = () => {
                 <p className="text-text-muted text-sm">No draws executed yet.</p>
             )}
         </div>
+      </div>
+
+      <div className="mt-8 glass-panel p-6 border border-primary/20">
+          <h2 className="text-xl font-bold mb-6">Winner Verifications (Pending)</h2>
+          {pendingWinners.length === 0 ? (
+              <p className="text-text-muted text-sm">No pending winners.</p>
+          ) : (
+              <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                      <thead className="text-text-muted bg-black/40 border-b border-surfaceBorder rounded-t">
+                          <tr>
+                              <th className="p-3">User</th>
+                              <th className="p-3">Prize</th>
+                              <th className="p-3">Matches</th>
+                              <th className="p-3">Proof Upload</th>
+                              <th className="p-3">Actions</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          {pendingWinners.map(win => (
+                              <tr key={win.id} className="border-b border-surfaceBorder bg-black/20 hover:bg-black/40">
+                                  <td className="p-3 font-medium">{win.user_name} <br/><span className="text-xs text-text-muted">{win.user_email}</span></td>
+                                  <td className="p-3 text-primary font-bold">${win.prize_amount}</td>
+                                  <td className="p-3">{win.match_type}</td>
+                                  <td className="p-3">
+                                      {win.proof_url ? (
+                                          <a href={win.proof_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">View Uploaded Image</a>
+                                      ) : (
+                                          <span className="text-text-muted text-xs italic">Awaiting User Upload...</span>
+                                      )}
+                                  </td>
+                                  <td className="p-3 flex gap-2">
+                                      {win.status === 'pending' ? (
+                                          <>
+                                              <button disabled={!win.proof_url} onClick={() => handleVerifyWinner(win.id, 'approved')} className="bg-green-600/20 text-green-500 hover:bg-green-600/40 px-3 py-1 rounded text-xs font-bold transition disabled:opacity-30 disabled:cursor-not-allowed">Approve</button>
+                                              <button onClick={() => handleVerifyWinner(win.id, 'rejected')} className="bg-red-600/20 text-red-500 hover:bg-red-600/40 px-3 py-1 rounded text-xs font-bold transition">Reject</button>
+                                          </>
+                                      ) : (
+                                          <span className={`px-2 py-1 text-xs rounded font-bold uppercase ${win.status === 'approved' ? 'bg-blue-500/20 text-blue-500' : 'bg-red-500/20 text-red-500'}`}>{win.status}</span>
+                                      )}
+                                  </td>
+                              </tr>
+                          ))}
+                      </tbody>
+                  </table>
+              </div>
+          )}
       </div>
     </div>
   );

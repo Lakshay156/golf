@@ -13,8 +13,8 @@ const Home = () => {
           The premium platform for golfers to compete, track Stableford scores, participate in cash-prize draws, and seamlessly donate to charities.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center animate-slide-up" style={{ animationDelay: '0.2s', animationFillMode: 'both' }}>
-          <Link to="/register" className="btn-primary flex items-center justify-center gap-2 group">
-            Start Your Membership <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+          <Link to={localStorage.getItem('token') ? "/dashboard" : "/register"} className="btn-primary flex items-center justify-center gap-2 group">
+            {localStorage.getItem('token') ? 'Go to Dashboard' : 'Start Your Membership'} <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
           </Link>
           <a href="#how-it-works" className="btn-secondary">
             Learn More

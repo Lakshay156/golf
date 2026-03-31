@@ -80,4 +80,38 @@ router.delete('/charities/:id', verifyToken, verifyAdmin, async (req, res) => {
     }
 });
 
+// ----- WINNERS VERIFICATION -----
+
+router.get('/winners/pending', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const result = await db.query(`
+            SELECT w.id, w.match_type, w.prize_amount, w.status, w.proof_url, w.created_at, u.name as user_name, u.email as user_email
+            FROM winners w
+            JOIN users u ON w.user_id = u.id
+            ORDER BY w.created_at DESC
+        `);
+        res.status(200).json({ data: result.rows });
+    } catch (err) {
+        res.status(500).json({ message: 'Server error fetching winners' });
+    }
+});
+
+router.put('/winners/:id/verify', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const { status } = req.body; // 'approved' or 'rejected'
+        if (!['approved', 'rejected', 'paid'].includes(status)) {
+            return res.status(400).json({ message: 'Invalid status update' });
+        }
+
+        const updateRes = await db.query(
+            "UPDATE winners SET status = $1 WHERE id = $2 RETURNING *",
+            [status, req.params.id]
+        );
+
+        res.status(200).json({ message: `Winner status updated to ${status}`, data: updateRes.rows[0] });
+    } catch (err) {
+        res.status(500).json({ message: 'Server error updating winner status' });
+    }
+});
+
 module.exports = router;

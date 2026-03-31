@@ -6,9 +6,8 @@ const { sendEmail } = require('../services/email');
 
 const router = express.Router();
 
-router.post('/register', async (req, res) => {
     try {
-        const { name, email, password, charity_id } = req.body;
+        const { name, email, password, charity_id, contribution_percentage } = req.body;
         
         if (!name || !email || !password) {
             return res.status(400).json({ message: 'Name, email, and password are required' });
@@ -28,9 +27,14 @@ router.post('/register', async (req, res) => {
              queryCharity = null;
         }
 
+        // Validate custom contribution
+        let contribution = parseFloat(contribution_percentage);
+        if (isNaN(contribution) || contribution < 10.00) contribution = 10.00;
+        if (contribution > 100.00) contribution = 100.00;
+
         const newUser = await db.query(
-            'INSERT INTO users (name, email, password_hash, charity_id, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, email, role, subscription_status',
-            [name, email, hashedPassword, queryCharity, 'user']
+            'INSERT INTO users (name, email, password_hash, charity_id, contribution_percentage, role) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, email, role, subscription_status, contribution_percentage',
+            [name, email, hashedPassword, queryCharity, contribution, 'user']
         );
 
         const user = newUser.rows[0];

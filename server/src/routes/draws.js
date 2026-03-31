@@ -1,6 +1,13 @@
 const express = require('express');
 const db = require('../db');
 const { verifyToken, verifyAdmin } = require('../middlewares/auth');
+const multer = require('multer');
+
+// Quick in-memory uploader for Base64 conversion
+const upload = multer({ 
+    storage: multer.memoryStorage(), 
+    limits: { fileSize: 5 * 1024 * 1024 } // 5MB Limit
+});
 
 const router = express.Router();
 
@@ -143,6 +150,31 @@ router.get('/latest', async (req, res) => {
         res.status(200).json({ data: drawRes.rows[0] });
     } catch(err) {
         res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Upload proof for a win
+router.post('/winners/:id/upload-proof', verifyToken, upload.single('proof_image'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: 'No image file provided' });
+        }
+
+        // Verify user owns this win
+        const winRes = await db.query("SELECT * FROM winners WHERE id = $1 AND user_id = $2", [req.params.id, req.user.id]);
+        if (winRes.rows.length === 0) {
+            return res.status(403).json({ message: 'Unauthorized or win not found' });
+        }
+
+        // Convert image to Base64
+        const base64Str = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+
+        await db.query("UPDATE winners SET proof_url = $1 WHERE id = $2", [base64Str, req.params.id]);
+
+        res.status(200).json({ message: 'Proof uploaded successfully!' });
+    } catch(err) {
+        console.error('Error uploading proof:', err);
+        res.status(500).json({ message: 'Server error during upload' });
     }
 });
 

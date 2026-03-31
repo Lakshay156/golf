@@ -5,9 +5,11 @@ import api from '../api/axios';
 const Dashboard = () => {
   const [user, setUser] = useState(null);
   const [scores, setScores] = useState([]);
+  const [winnings, setWinnings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newScore, setNewScore] = useState('');
   const [addingScore, setAddingScore] = useState(false);
+  const [uploadingWinId, setUploadingWinId] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -16,6 +18,7 @@ const Dashboard = () => {
         const res = await api.get('/users/me');
         setUser(res.data.user);
         setScores(res.data.scores || []);
+        setWinnings(res.data.winnings || []);
       } catch (err) {
         if (err.response?.status === 401) {
           navigate('/login');
@@ -62,6 +65,29 @@ const Dashboard = () => {
       } finally {
           setAddingScore(false);
       }
+  };
+
+  const handleUploadProof = async (winId, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('proof_image', file);
+
+    setUploadingWinId(winId);
+    try {
+        await api.post(`/draws/winners/${winId}/upload-proof`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        alert('Proof uploaded successfully! Awaiting Admin verification.');
+        // Refresh dashboard
+        const res = await api.get('/users/me');
+        setWinnings(res.data.winnings || []);
+    } catch(err) {
+        alert(err.response?.data?.message || 'Error uploading proof');
+    } finally {
+        setUploadingWinId(null);
+    }
   };
 
   if (loading) {
@@ -113,6 +139,38 @@ const Dashboard = () => {
                     <p className="text-sm text-text-muted">No charity selected yet.</p>
                 )}
             </div>
+
+            {winnings.length > 0 && (
+                <div className="glass-panel p-6 border-primary/50">
+                    <h2 className="text-xl font-bold border-b border-surfaceBorder pb-4 mb-4 text-primary-light">Your Winnings 🏆</h2>
+                    <div className="flex flex-col gap-4">
+                        {winnings.map(win => (
+                            <div key={win.id} className="p-4 rounded-xl bg-black/20 border border-surfaceBorder">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="font-bold text-lg">${win.prize_amount}</span>
+                                    <span className={`px-2 py-1 text-xs rounded-full font-bold uppercase ${win.status === 'paid' ? 'bg-green-500/20 text-green-500' : win.status === 'approved' ? 'bg-blue-500/20 text-blue-500' : win.status === 'rejected' ? 'bg-red-500/20 text-red-500' : 'bg-yellow-500/20 text-yellow-500'}`}>
+                                        {win.status}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-text-muted mb-3">You matched {win.match_type} numbers!</p>
+                                
+                                {win.status === 'pending' && !win.proof_url && (
+                                    <div className="mt-2 border-t border-surfaceBorder pt-3">
+                                        <p className="text-xs text-text-muted mb-2">Action Required: Upload screenshot of score proof to claim</p>
+                                        <label className="btn-secondary w-full text-center flex items-center justify-center cursor-pointer disabled:opacity-50">
+                                            {uploadingWinId === win.id ? 'Uploading...' : 'Upload Image Proof'}
+                                            <input type="file" className="hidden" accept="image/*" onChange={(e) => handleUploadProof(win.id, e)} disabled={uploadingWinId === win.id} />
+                                        </label>
+                                    </div>
+                                )}
+                                {win.proof_url && win.status === 'pending' && (
+                                    <p className="text-xs text-green-400 mt-2 font-bold">✓ Proof uploaded. Pending verification.</p>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
 
         {/* Scores Panel */}

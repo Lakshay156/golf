@@ -64,6 +64,7 @@ CREATE TABLE winners (
     draw_id UUID REFERENCES draws(id) ON DELETE CASCADE,
     match_type INTEGER NOT NULL, -- 3, 4, or 5 matches
     prize_amount DECIMAL(10,2) NOT NULL,
+    proof_url TEXT, -- Base64 String or URL of score proof uploaded by winner
     status VARCHAR(50) DEFAULT 'pending', -- 'pending', 'approved', 'paid'
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

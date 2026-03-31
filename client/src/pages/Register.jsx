@@ -7,7 +7,8 @@ const Register = () => {
     name: '',
     email: '',
     password: '',
-    charity_id: ''
+    charity_id: '',
+    contribution_percentage: 10
   });
   const [charities, setCharities] = useState([]);
   const [error, setError] = useState('');
@@ -79,6 +80,17 @@ const Register = () => {
                 <option value="temp-uuid-placeholder">General Default Charity</option>
               )}
             </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-2 text-text-main">Charity Contribution (%)</label>
+            <p className="text-xs text-text-muted mb-2">A minimum of 10% of your subscription goes to your selected charity.</p>
+            <div className="flex items-center gap-4">
+              <input type="range" name="contribution_percentage" min="10" max="100" step="1" className="w-full h-2 bg-background-dark rounded-lg appearance-none cursor-pointer accent-primary" value={formData.contribution_percentage} onChange={handleChange} />
+              <div className="bg-primary/20 text-primary font-bold px-3 py-1 rounded-md min-w-[3rem] text-center">
+                {formData.contribution_percentage}%
+              </div>
+            </div>
           </div>
 
           <button type="submit" className="btn-primary w-full mt-4" disabled={loading}>

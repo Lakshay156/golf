@@ -29,9 +29,15 @@ router.get('/me', verifyToken, async (req, res) => {
             }
         }
 
+        const winningsResult = await db.query(
+            "SELECT id, match_type, prize_amount, status, proof_url, created_at FROM winners WHERE user_id = $1 ORDER BY created_at DESC", 
+            [req.user.id]
+        );
+
         res.status(200).json({
             user: { ...userResult.rows[0], charity },
-            scores: scoresResult.rows
+            scores: scoresResult.rows,
+            winnings: winningsResult.rows
         });
     } catch (err) {
         console.error('Error fetching user profile:', err);
@@ -73,6 +79,36 @@ router.put('/me/preferences', verifyToken, async (req, res) => {
     } catch (err) {
         console.error('Error updating profile:', err);
         res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Update Profile
+router.put('/profile', verifyToken, async (req, res) => {
+    try {
+        const { charity_id, contribution_percentage } = req.body;
+        
+        let contribution = parseFloat(contribution_percentage);
+        if (isNaN(contribution) || contribution < 10) contribution = 10;
+        if (contribution > 100) contribution = 100;
+
+        let queryCharity = charity_id;
+        if (!charity_id || charity_id === 'temp-uuid-placeholder') {
+             queryCharity = null;
+        }
+
+        const updateRes = await db.query(
+            "UPDATE users SET charity_id = $1, contribution_percentage = $2 WHERE id = $3 RETURNING id, name, email, charity_id, contribution_percentage",
+            [queryCharity, contribution, req.user.id]
+        );
+
+        if (updateRes.rows.length === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.status(200).json({ message: 'Profile updated successfully', data: updateRes.rows[0] });
+    } catch (err) {
+        console.error('Error updating profile:', err);
+        res.status(500).json({ message: 'Server error updating profile' });
     }
 });
 
