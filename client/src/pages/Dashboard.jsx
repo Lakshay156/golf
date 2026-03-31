@@ -10,15 +10,26 @@ const Dashboard = () => {
   const [newScore, setNewScore] = useState('');
   const [addingScore, setAddingScore] = useState(false);
   const [uploadingWinId, setUploadingWinId] = useState(null);
+  const [charities, setCharities] = useState([]);
+  const [isEditingCharity, setIsEditingCharity] = useState(false);
+  const [editCharityData, setEditCharityData] = useState({ charity_id: '', contribution_percentage: 10 });
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const res = await api.get('/users/me');
-        setUser(res.data.user);
-        setScores(res.data.scores || []);
-        setWinnings(res.data.winnings || []);
+        const [meRes, charRes] = await Promise.all([
+            api.get('/users/me'),
+            api.get('/charities').catch(() => ({ data: { data: [] } }))
+        ]);
+        setUser(meRes.data.user);
+        setScores(meRes.data.scores || []);
+        setWinnings(meRes.data.winnings || []);
+        setCharities(charRes.data.data || []);
+        setEditCharityData({
+            charity_id: meRes.data.user?.charity_id || '',
+            contribution_percentage: meRes.data.user?.contribution_percentage || 10
+        });
       } catch (err) {
         if (err.response?.status === 401) {
           navigate('/login');
@@ -90,6 +101,19 @@ const Dashboard = () => {
     }
   };
 
+  const handleUpdateCharity = async (e) => {
+      e.preventDefault();
+      try {
+          await api.put('/users/profile', editCharityData);
+          const res = await api.get('/users/me');
+          setUser(res.data.user);
+          setIsEditingCharity(false);
+          alert('Charity preferences updated!');
+      } catch (err) {
+          alert(err.response?.data?.message || 'Error updating charity');
+      }
+  };
+
   if (loading) {
     return <div className="flex justify-center items-center h-[60vh] text-primary fade-in">Loading Golf Data...</div>;
   }
@@ -125,20 +149,50 @@ const Dashboard = () => {
             )}
             </div>
 
-            <div className="glass-panel p-6">
-                <h2 className="text-xl font-bold border-b border-surfaceBorder pb-4 mb-4">Supported Charity</h2>
+            <div className="glass-panel p-6 border-primary/20 transition-all">
+                <div className="flex justify-between items-center border-b border-surfaceBorder pb-4 mb-4">
+                    <h2 className="text-xl font-bold">Supported Charity</h2>
+                    {user?.subscription_status === 'active' && !isEditingCharity && (
+                        <button onClick={() => setIsEditingCharity(true)} className="text-xs text-primary hover:underline font-bold">Edit</button>
+                    )}
+                </div>
+
                 {user?.subscription_status !== 'active' ? (
                     <p className="text-sm text-text-muted italic">Subscribe to unlock charity contributions!</p>
+                ) : isEditingCharity ? (
+                    <form onSubmit={handleUpdateCharity} className="flex flex-col gap-4 fade-in">
+                        <div>
+                            <label className="text-xs font-bold text-text-muted mb-1 block">Select Charity</label>
+                            <select className="input-field py-2 text-sm" value={editCharityData.charity_id} onChange={e => setEditCharityData({...editCharityData, charity_id: e.target.value})} required>
+                                <option value="">-- Choose --</option>
+                                {charities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-text-muted mb-1 block">Contribution ({editCharityData.contribution_percentage}%)</label>
+                            <input type="range" min="10" max="100" className="w-full accent-primary" value={editCharityData.contribution_percentage} onChange={e => setEditCharityData({...editCharityData, contribution_percentage: e.target.value})} />
+                        </div>
+                        <div className="flex gap-2 mt-2">
+                            <button type="submit" className="btn-primary flex-1 py-2 text-sm">Save</button>
+                            <button type="button" onClick={() => setIsEditingCharity(false)} className="btn-secondary flex-1 py-2 text-sm bg-surfaceBorder/50">Cancel</button>
+                        </div>
+                    </form>
                 ) : user?.charity ? (
-                    <div className="flex items-center gap-4">
-                        {user.charity.image_url && <img src={user.charity.image_url} alt="Charity" className="w-12 h-12 rounded-full object-cover border border-surfaceBorder"/>}
+                    <div className="flex items-center gap-4 fade-in">
+                        {user.charity.image_url ? 
+                            <img src={user.charity.image_url} alt="Charity" className="w-12 h-12 rounded-full object-cover border border-surfaceBorder"/>
+                            : <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary">NGO</div>
+                        }
                         <div>
                             <p className="font-semibold">{user.charity.name}</p>
-                            <p className="text-sm text-text-muted mt-1">{user.contribution_percentage}% Contribution</p>
+                            <p className="text-sm text-primary font-bold mt-1">{user.contribution_percentage}% Contribution</p>
                         </div>
                     </div>
                 ) : (
-                    <p className="text-sm text-text-muted">No charity selected yet.</p>
+                    <div className="fade-in">
+                        <p className="text-sm text-yellow-500 font-bold mb-2">⚠ Action Required</p>
+                        <p className="text-sm text-text-muted">You haven't selected a charity yet. Please edit to choose where your subscription funds go!</p>
+                    </div>
                 )}
             </div>
 
