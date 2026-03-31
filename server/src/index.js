@@ -6,13 +6,36 @@ const app = express();
 
 const crypto = require('crypto');
 
-// Razorpay webhooks need the raw body to verify HMAC signatures
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+
+// Stripe webhooks need the raw body to verify signatures
 app.post('/api/subscriptions/webhook', express.raw({ type: 'application/json' }), (req, res) => {
-    const signature = req.headers['x-razorpay-signature'];
+    const signature = req.headers['stripe-signature'];
     
-    // In production, use crypto.createHmac to verify the signature against process.env.WEBHOOK_SECRET
-    console.log('Razorpay webhook received with signature:', signature);
+    let event;
+    try {
+        if (!process.env.WEBHOOK_SECRET || process.env.WEBHOOK_SECRET === 'dummy_for_now') {
+            // For testing before webhook secret is set
+            event = JSON.parse(req.body);
+            console.log('Skipped Stripe signature verification. Secret not configured.');
+        } else {
+            event = stripe.webhooks.constructEvent(req.body, signature, process.env.WEBHOOK_SECRET);
+        }
+    } catch (err) {
+        console.error('Webhook signature verification failed.', err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    console.log('Stripe webhook received:', event.type);
+    
+    // In production, you would handle event.type === 'checkout.session.completed' here
+    
     res.status(200).send('OK');
+});
+
+// Added root route so people don't get "Cannot GET /"
+app.get('/', (req, res) => {
+    res.status(200).send('<h1>FairwayCause API is running!</h1><p>Frontend should point to /api</p>');
 });
 
 app.use(express.json());
