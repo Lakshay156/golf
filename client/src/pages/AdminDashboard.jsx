@@ -112,6 +112,15 @@ const AdminDashboard = () => {
       }
   };
 
+  const handleToggleSub = async (userId) => {
+      try {
+          await api.put(`/admin/users/${userId}/toggle-subscription`);
+          await fetchAdminData(); // Refresh the list
+      } catch (err) {
+          alert('Failed to toggle subscription override.');
+      }
+  };
+
   if (loading) return <div className="flex justify-center h-[60vh] items-center text-primary">Loading Admin...</div>;
 
   return (
@@ -246,7 +255,7 @@ const AdminDashboard = () => {
           <div className="overflow-x-auto">
               <table className="w-full text-left text-sm whitespace-nowrap">
                   <thead className="text-text-muted bg-black/40 border-b border-surfaceBorder">
-                      <tr><th className="p-3">Name</th><th className="p-3">Email</th><th className="p-3">Role</th><th className="p-3">Subscription</th><th className="p-3">Charity</th></tr>
+                      <tr><th className="p-3">Name</th><th className="p-3">Email</th><th className="p-3">Role</th><th className="p-3">Subscription</th><th className="p-3">Charity</th><th className="p-3">Actions</th></tr>
                   </thead>
                   <tbody>
                       {users.map(u => (
@@ -258,6 +267,11 @@ const AdminDashboard = () => {
                                 <span className={`px-2 py-1 text-xs rounded-full uppercase ${u.subscription_status === 'active' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>{u.subscription_status}</span>
                               </td>
                               <td className="p-3">{u.charity_name || 'None'}</td>
+                              <td className="p-3">
+                                  <button onClick={() => handleToggleSub(u.id)} className="text-xs font-bold border border-surfaceBorder px-2 py-1 rounded hover:bg-surfaceBorder transition tracking-wider">
+                                     TOGGLE SUB
+                                  </button>
+                              </td>
                           </tr>
                       ))}
                   </tbody>

@@ -127,7 +127,9 @@ const Dashboard = () => {
 
             <div className="glass-panel p-6">
                 <h2 className="text-xl font-bold border-b border-surfaceBorder pb-4 mb-4">Supported Charity</h2>
-                {user?.charity ? (
+                {user?.subscription_status !== 'active' ? (
+                    <p className="text-sm text-text-muted italic">Subscribe to unlock charity contributions!</p>
+                ) : user?.charity ? (
                     <div className="flex items-center gap-4">
                         {user.charity.image_url && <img src={user.charity.image_url} alt="Charity" className="w-12 h-12 rounded-full object-cover border border-surfaceBorder"/>}
                         <div>

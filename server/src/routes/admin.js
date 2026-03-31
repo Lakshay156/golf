@@ -43,6 +43,21 @@ router.get('/users', verifyToken, verifyAdmin, async (req, res) => {
     }
 });
 
+// Toggle user subscription manually (Admin testing override)
+router.put('/users/:id/toggle-subscription', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const userRes = await db.query('SELECT subscription_status FROM users WHERE id = $1', [req.params.id]);
+        if (userRes.rows.length === 0) return res.status(404).json({ message: 'User not found' });
+        
+        const newStatus = userRes.rows[0].subscription_status === 'active' ? 'inactive' : 'active';
+        
+        await db.query("UPDATE users SET subscription_status = $1 WHERE id = $2", [newStatus, req.params.id]);
+        res.status(200).json({ message: `Subscription updated to ${newStatus}` });
+    } catch (err) {
+        res.status(500).json({ message: 'Server error toggling subscription' });
+    }
+});
+
 // ----- CHARITY CRUD -----
 
 router.post('/charities', verifyToken, verifyAdmin, async (req, res) => {
