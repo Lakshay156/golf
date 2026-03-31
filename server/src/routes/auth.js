@@ -6,6 +6,7 @@ const { sendEmail } = require('../services/email');
 
 const router = express.Router();
 
+router.post('/register', async (req, res) => {
     try {
         const { name, email, password, charity_id, contribution_percentage } = req.body;
         
