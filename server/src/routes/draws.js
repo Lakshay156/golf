@@ -36,6 +36,8 @@ function getMatchCount(userScores, drawNumbers) {
 // Run the monthly draw
 router.post('/run', verifyToken, verifyAdmin, async (req, res) => {
     try {
+        const { simulate = false, method = 'random' } = req.body;
+
         await db.query('BEGIN');
 
         // 1. Calculate the prize pool (e.g. 50% of active subscriptions)
@@ -53,7 +55,27 @@ router.post('/run', verifyToken, verifyAdmin, async (req, res) => {
         }
 
         // 2. Generate numbers
-        const drawNumbers = generateDrawNumbers();
+        let drawNumbers = [];
+        if (method === 'algorithmic') {
+            // Pick the 5 most frequently entered scores among active users
+            const freqQuery = await db.query(`
+                SELECT score, COUNT(score) as freq 
+                FROM scores s 
+                JOIN users u ON s.user_id = u.id 
+                WHERE u.subscription_status = 'active'
+                GROUP BY score 
+                ORDER BY freq DESC 
+                LIMIT 5
+            `);
+            if (freqQuery.rows.length === 5) {
+                drawNumbers = freqQuery.rows.map(r => parseInt(r.score)).sort((a,b) => a - b);
+            } else {
+                // Fallback if not enough data
+                drawNumbers = generateDrawNumbers();
+            }
+        } else {
+            drawNumbers = generateDrawNumbers();
+        }
 
         // 3. Create Draw record
         const drawRes = await db.query(
@@ -120,10 +142,33 @@ router.post('/run', verifyToken, verifyAdmin, async (req, res) => {
         // Update draw with rolled over jackpot
         await db.query("UPDATE draws SET jackpot_amount = $1 WHERE id = $2", [nextJackpot, drawId]);
 
+        // SIMULATION MODE BEHAVIOR
+        if (simulate) {
+            await db.query('ROLLBACK');
+            return res.status(200).json({
+                message: 'Simulation completed. Database was NOT modified.',
+                simulated: true,
+                drawNumbers,
+                totalPrizePool: newPrizePool,
+                potDistribution: {
+                    match5_pot: pot5,
+                    match4_pot: pot4,
+                    match3_pot: pot3
+                },
+                nextJackpot,
+                winnersCount: {
+                    match5: winners5.length,
+                    match4: winners4.length,
+                    match3: winners3.length
+                }
+            });
+        }
+
         await db.query('COMMIT');
 
         res.status(200).json({
-            message: 'Draw executed successfully',
+            message: 'Draw officially executed & published successfully',
+            simulated: false,
             drawNumbers,
             totalPrizePool: newPrizePool,
             nextJackpot,
