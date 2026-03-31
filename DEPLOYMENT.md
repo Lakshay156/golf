@@ -10,7 +10,7 @@
 1. Create a [Stripe Account](https://stripe.com).
 2. In the Dashboard under Developers -> API Keys, get your **Secret Key**.
 3. Create Subscription Products for "Monthly" and "Yearly", and note their **Price IDs**.
-4. Important: Ensure you configure the Stripe Webhook pointing to `https://your-backend-domain.com/api/subscriptions/webhook` (once your backend is deployed) testing for events like `checkout.session.completed`.
+4. *(Note: You will configure the Stripe Webhook later in Step 5, because Stripe needs your live backend URL first!)*
 
 ## 3. Frontend Initial Deployment (Vercel)
 *We must deploy the frontend first to generate a valid domain for backend CORS and Stripe redirect URLs.*
@@ -32,14 +32,28 @@
    - `DATABASE_URL=your_supabase_postgresql_url`
    - `JWT_SECRET=generate_a_random_secure_string`
    - `STRIPE_SECRET_KEY=sk_live_...`
-   - `WEBHOOK_SECRET=your_webhook_secret`
+   - `WEBHOOK_SECRET=dummy_for_now` (We will update this in Step 5)
    - `CLIENT_URL=https://your-frontend-domain.vercel.app` (The Vercel URL generated in Step 3)
+8. Deploy the backend and copy its new live URL (e.g., `https://fairwaycause-backend.onrender.com`).
 
-## 5. Frontend Final Configuration (Vercel)
+## 5. Connecting the Dots (Webhooks & Vercel API URL)
+Now that both sides have live URLs, we must connect them to each other and to Stripe:
+
+**A. Vercel (Frontend) Configuration:**
 1. Go back to your Vercel project Settings -> Environment Variables.
-2. Add the variable:
-   - `VITE_API_URL=https://your-backend-domain.onrender.com/api` (The backend URL generated in Step 4)
-3. Under the Deployments tab, click **Redeploy** to apply the new environment variable.
+2. Add: `VITE_API_URL=https://fairwaycause-backend.onrender.com/api` (The backend URL from Step 4)
+3. Go to the Deployments tab and click **Redeploy**.
+
+**B. Stripe Webhook Configuration:**
+1. In your Stripe Dashboard, go to Developers -> Webhooks -> **Add an endpoint**.
+2. For the Endpoint URL, paste your backend URL adding the webhook path: `https://fairwaycause-backend.onrender.com/api/subscriptions/webhook`
+3. Select the event: `checkout.session.completed` and save.
+4. Stripe will reveal a **Signing Secret** (`whsec_...`). Copy it.
+
+**C. Render (Backend) Configuration:**
+1. Go back to your Render backend Settings -> Environment Variables.
+2. Update `WEBHOOK_SECRET` with the real `whsec_...` value you just copied.
+3. **Save Changes** (Render will automatically restart the server with the new secret).
 
 ## 6. Verify Setup
 - Register a user on your live Vercel frontend.
